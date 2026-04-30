@@ -1,5 +1,12 @@
 # zipline-pyspark
 
+[![CI](https://github.com/zipline-ai/zipline-pyspark/actions/workflows/ci.yml/badge.svg)](https://github.com/zipline-ai/zipline-pyspark/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Imports: isort](https://img.shields.io/badge/imports-isort-ef8336.svg)](https://pycqa.github.io/isort/)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
+[![License](https://img.shields.io/github/license/zipline-ai/zipline-pyspark)](LICENSE)
+
 Execution utilities to help with iteration and UX when working with [Zipline](https://zipline.ai) in notebook environments.
 
 > **Status:** Work in progress.
@@ -39,6 +46,54 @@ result_df = JupyterStagingQuery(my_staging_query, spark).run(
     step_days=1,
 )
 ```
+
+## Setup
+
+### Prerequisites
+
+- Python 3.11+
+- PySpark 3.5+
+- A running Spark session (local or remote)
+- `zipline-ai` package (installed automatically as a dependency)
+
+### Development install
+
+```bash
+git clone https://github.com/zipline-ai/zipline-pyspark.git
+cd zipline-pyspark
+pip install -e ".[dev]"
+pre-commit install
+```
+
+### Running tests
+
+```bash
+pytest tests/ -v --cov=src --cov-report=term-missing
+```
+
+## Roadmap
+
+### 1. Testing environment suite
+
+A lightweight test harness that lets unit tests run without a real cluster.
+
+- **Fake Spark session** — an in-process `SparkSession` (PySpark local mode) spun up once per test session via a `pytest` fixture, making tests fast and self-contained.
+- **Stub Zipline entities** — minimal Python objects that satisfy the `staging_query.query`, `staging_query.setups`, `group_by`, and `join` attribute contracts, so tests do not depend on the full `zipline-ai` object graph.
+- **Date-range helpers** — factory functions that generate `(start_date, end_date, step_days)` tuples covering common edge cases (single day, multi-step, boundary alignment).
+- **Coverage targets** — `_parse_date`, `_render_query`, and `JupyterStagingQuery.run` chunking logic as initial targets; extended to `GroupBy` and `Join` runners as those are implemented.
+
+### 2. Implement `jupyter` and `databricks` backends
+
+- **`jupyter.py`** — complete `JupyterGroupBy` and `JupyterJoin` to match the existing `JupyterStagingQuery` pattern: date-range chunking, setup-statement execution, and union of per-step DataFrames.
+- **`databricks.py`** — a parallel set of classes (`DatabricksGroupBy`, `DatabricksJoin`, `DatabricksStagingQuery`) that adapt the same interface for Databricks notebooks: `dbutils`-aware progress display, widget-based date inputs, and Databricks `displayHTML` / `display` integration instead of plain DataFrame returns.
+- **Shared base layer** — extract common chunking and template-rendering logic into an internal `_base.py` so both backends stay in sync without code duplication.
+
+### 3. Setup and distribution
+
+- Add `[dev]` optional dependencies to `pyproject.toml` (`pytest`, `pytest-spark`, `pyspark` local mode) so contributors get a working environment with one command.
+- Publish to PyPI under `zipline-pyspark` and document the `%pip install zipline-pyspark` notebook workflow.
+- Add a `CONTRIBUTING.md` with environment setup, test instructions, and coding conventions.
+- Add CI (GitHub Actions) running `pytest` on push and pull request.
 
 ## Credits
 

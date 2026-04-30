@@ -1,0 +1,10 @@
+[flake8]
+max-line-length = 100
+# E203: whitespace before ':' — conflicts with black slice formatting
+# W503: line break before binary operator — conflicts with black
+# D1xx: missing docstring rules — too strict for a library in early development
+# D107: missing docstring in __init__
+extend-ignore = E203, W503, D100, D101, D102, D103, D104, D107
+exclude = .git, __pycache__, build, dist, .eggs
+per-file-ignores =
+    tests/*:D
