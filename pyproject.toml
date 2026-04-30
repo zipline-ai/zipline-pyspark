@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "zipline-pyspark"
+version = "0.1.0"
+description = "Notebook execution utilities for Zipline AI"
+requires-python = ">= 3.11"
+dependencies = [
+    "zipline-ai",
+    "pyspark>=3.5",
+]
+
+[project.urls]
+homepage = "https://zipline.ai"
+github = "https://github.com/zipline-ai/zipline-pyspark/"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = true
