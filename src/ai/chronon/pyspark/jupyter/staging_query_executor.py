@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 import tempfile
@@ -6,6 +7,8 @@ from typing import Optional
 from pyspark.sql import DataFrame, SparkSession
 
 from ai.chronon.pyspark.jupyter.session import ChrononSession
+
+logger = logging.getLogger(__name__)
 
 
 def _sanitize(name: Optional[str]) -> Optional[str]:
@@ -73,18 +76,19 @@ class JupyterStagingQuery:
             conf_path,
             "--end-date",
             end_date,
-            "--enable-auto-expand",
-            str(enable_auto_expand).lower(),
-            "--force-overwrite",
-            str(force_overwrite).lower(),
-            "--run-first-hole",
-            str(run_first_hole).lower(),
         ]
+        if enable_auto_expand:
+            cli_args.append("--enable-auto-expand")
+        if force_overwrite:
+            cli_args.append("--force-overwrite")
+        if run_first_hole:
+            cli_args.append("--run-first-hole")
         if start_date is not None:
             cli_args += ["--start-partition", start_date]
         if step_days is not None:
             cli_args += ["--step-days", str(step_days)]
 
+        logger.info("Invoking Scala driver: %s", " ".join(cli_args))
         java_args = gateway.new_array(jvm.String, len(cli_args))
         for i, arg in enumerate(cli_args):
             java_args[i] = arg

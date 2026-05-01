@@ -35,45 +35,46 @@ class TestOutputTable:
 
 
 class TestInvokeDriver:
-    # Base arg count: subcommand + 5 flag pairs = 11
-    _BASE_ARGS = 11
-
     def _make_spark(self):
         spark = MagicMock()
-        spark.sparkContext._gateway.new_array.return_value = [None] * 20
+        spark.sparkContext._gateway.new_array.side_effect = lambda t, n: [None] * n
         return spark
+
+    def _get_cli_args(self, spark):
+        return list(spark._jvm.ai.chronon.spark.Driver.main.call_args[0][0])
 
     def test_basic_args_passed_to_jvm(self):
         spark = self._make_spark()
         jsq = JupyterStagingQuery(_make_sq(), spark)
         jsq._invoke_driver("/tmp/conf.json", "2026-04-01")
 
-        jvm = spark._jvm
-        jvm.ai.chronon.spark.Driver.main.assert_called_once()
+        spark._jvm.ai.chronon.spark.Driver.main.assert_called_once()
 
     def test_step_days_included_when_set(self):
         spark = self._make_spark()
         jsq = JupyterStagingQuery(_make_sq(), spark)
         jsq._invoke_driver("/tmp/conf.json", "2026-04-01", step_days=7)
 
-        gateway = spark.sparkContext._gateway
-        gateway.new_array.assert_called_once_with(spark._jvm.String, self._BASE_ARGS + 2)
+        args = self._get_cli_args(spark)
+        assert "--step-days" in args
+        assert "7" in args
 
     def test_no_step_days_omits_flag(self):
         spark = self._make_spark()
         jsq = JupyterStagingQuery(_make_sq(), spark)
         jsq._invoke_driver("/tmp/conf.json", "2026-04-01")
 
-        gateway = spark.sparkContext._gateway
-        gateway.new_array.assert_called_once_with(spark._jvm.String, self._BASE_ARGS)
+        args = self._get_cli_args(spark)
+        assert "--step-days" not in args
 
     def test_start_partition_included_when_set(self):
         spark = self._make_spark()
         jsq = JupyterStagingQuery(_make_sq(), spark)
         jsq._invoke_driver("/tmp/conf.json", "2026-04-01", start_date="2026-03-01")
 
-        gateway = spark.sparkContext._gateway
-        gateway.new_array.assert_called_once_with(spark._jvm.String, self._BASE_ARGS + 2)
+        args = self._get_cli_args(spark)
+        assert "--start-partition" in args
+        assert "2026-03-01" in args
 
 
 class TestRun:
