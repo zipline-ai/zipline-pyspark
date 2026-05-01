@@ -79,27 +79,15 @@ pytest tests/ -v --no-cov
 
 ## Roadmap
 
-### 1. Testing environment suite
-
-A lightweight test harness that lets unit tests run without a real cluster.
-
-- **Fake Spark session** — an in-process `SparkSession` (PySpark local mode) spun up once per test session via a `pytest` fixture, making tests fast and self-contained.
-- **Stub Zipline entities** — minimal Python objects that satisfy the `staging_query.query`, `staging_query.setups`, `group_by`, and `join` attribute contracts, so tests do not depend on the full `zipline-ai` object graph.
-- **Date-range helpers** — factory functions that generate `(start_date, end_date, step_days)` tuples covering common edge cases (single day, multi-step, boundary alignment).
-- **Coverage targets** — `_parse_date`, `_render_query`, and `JupyterStagingQuery.run` chunking logic as initial targets; extended to `GroupBy` and `Join` runners as those are implemented.
-
-### 2. Implement `jupyter` and `databricks` backends
+### 1. Implement `jupyter` and `databricks` backends
 
 - **`jupyter.py`** — complete `JupyterGroupBy` and `JupyterJoin` to match the existing `JupyterStagingQuery` pattern: date-range chunking, setup-statement execution, and union of per-step DataFrames.
 - **`databricks.py`** — a parallel set of classes (`DatabricksGroupBy`, `DatabricksJoin`, `DatabricksStagingQuery`) that adapt the same interface for Databricks notebooks: `dbutils`-aware progress display, widget-based date inputs, and Databricks `displayHTML` / `display` integration instead of plain DataFrame returns.
 - **Shared base layer** — extract common chunking and template-rendering logic into an internal `_base.py` so both backends stay in sync without code duplication.
 
-### 3. Setup and distribution
+### 2. Distribution
 
-- Add `[dev]` optional dependencies to `pyproject.toml` (`pytest`, `pytest-spark`, `pyspark` local mode) so contributors get a working environment with one command.
 - Publish to PyPI under `zipline-pyspark` and document the `%pip install zipline-pyspark` notebook workflow.
-- Add a `CONTRIBUTING.md` with environment setup, test instructions, and coding conventions.
-- ~~Add CI (GitHub Actions) running `pytest` on push and pull request.~~ ✓ Done
 
 ## Credits
 
