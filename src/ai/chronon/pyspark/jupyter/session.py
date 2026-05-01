@@ -59,6 +59,7 @@ class ChrononSession:
         for key, value in settings.items():
             try:
                 spark.conf.set(key, value)
+                logger.info("Applied Spark conf: %s = %s", key, value)
             except AnalysisException:
                 logger.warning(
                     "Skipping immutable Spark conf %s (must be set at session creation)", key
@@ -76,8 +77,11 @@ class ChrononSession:
         """
         from ai.chronon.cli.compile.parse_teams import load_teams, update_metadata
         from ai.chronon.cli.compile.serializer import thrift_simple_json
+        from ai.chronon.staging_query import _get_output_table_name
 
         teams_dict = load_teams(chronon_root, print=False)
         update_metadata(staging_query, teams_dict)
+        if not staging_query.metaData.name:
+            _get_output_table_name(staging_query)
         with open(conf_path, "w") as f:
             f.write(thrift_simple_json(staging_query))

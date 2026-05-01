@@ -1,3 +1,4 @@
+import logging
 import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -52,6 +53,26 @@ class TestChrononSessionCompileToFile:
             mock_update_metadata,
             mock_thrift,
         )
+
+    def test_name_resolved_via_gc_when_none(self, tmp_path):
+        sq = SimpleNamespace(metaData=SimpleNamespace(name=None))
+        conf_path = str(tmp_path / "out.json")
+        modules, _, _, _ = self._mock_chronon_cli_modules({}, "{}")
+        mock_resolve = MagicMock()
+        mock_sq_module = MagicMock(_get_output_table_name=mock_resolve)
+        with patch.dict(sys.modules, {**modules, "ai.chronon.staging_query": mock_sq_module}):
+            ChrononSession.compile_to_file(sq, "/root", conf_path)
+        mock_resolve.assert_called_once_with(sq)
+
+    def test_name_not_resolved_when_already_set(self, tmp_path):
+        sq = SimpleNamespace(metaData=SimpleNamespace(name="already.set__0"))
+        conf_path = str(tmp_path / "out.json")
+        modules, _, _, _ = self._mock_chronon_cli_modules({}, "{}")
+        mock_resolve = MagicMock()
+        mock_sq_module = MagicMock(_get_output_table_name=mock_resolve)
+        with patch.dict(sys.modules, {**modules, "ai.chronon.staging_query": mock_sq_module}):
+            ChrononSession.compile_to_file(sq, "/root", conf_path)
+        mock_resolve.assert_not_called()
 
     def test_writes_serialized_json(self, tmp_path):
         sq = MagicMock()
@@ -127,6 +148,14 @@ class TestChrononSessionApplyExecutionConf:
         before = spark.conf.get("spark.sql.shuffle.partitions")
         ChrononSession.apply_execution_conf(spark, obj)
         assert spark.conf.get("spark.sql.shuffle.partitions") == before
+
+    def test_applied_confs_logged_at_info(self, caplog):
+        mock_spark = MagicMock()
+        obj = _make_compiled_obj(common={"spark.sql.shuffle.partitions": "8"})
+        with caplog.at_level(logging.INFO, logger="ai.chronon.pyspark.jupyter.session"):
+            ChrononSession.apply_execution_conf(mock_spark, obj)
+        assert "spark.sql.shuffle.partitions" in caplog.text
+        assert "8" in caplog.text
 
     def test_immutable_conf_warns_and_continues(self, spark):
         from pyspark.sql.utils import AnalysisException
