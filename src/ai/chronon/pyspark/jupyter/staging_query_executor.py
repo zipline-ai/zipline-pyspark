@@ -23,7 +23,7 @@ class JupyterStagingQuery:
 
     Compiles the staging-query config into ``tmp_dir`` (running the same namespace
     propagation and team-conf merging as the CLI compile step), then invokes
-    ``ai.chronon.spark.batch.StagingQuery.main()`` via the Py4J gateway and reads the
+    ``ai.chronon.spark.Driver.main()`` via the Py4J gateway and reads the
     output table back as a DataFrame.
 
     Requires the Chronon batch JAR to be on the SparkSession classpath.
@@ -66,12 +66,13 @@ class JupyterStagingQuery:
         force_overwrite: bool = False,
         run_first_hole: bool = True,
     ) -> None:
-        """Call ai.chronon.spark.Driver.main() with the staging-query-backfill subcommand."""
+        """Call ai.chronon.spark.Driver.main() with the subcommand and --no-exit."""
         gateway = self.spark.sparkContext._gateway
         jvm = self.spark._jvm
 
         cli_args = [
             "staging-query-backfill",
+            "--no-exit",
             "--conf-path",
             conf_path,
             "--end-date",
