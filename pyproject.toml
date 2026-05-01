@@ -46,7 +46,8 @@ exclude = ["tests/"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=src --cov-report=term-missing --cov-fail-under=90"
+addopts = "--cov=src --cov-report=term-missing --cov-fail-under=90 -m 'not integration'"
+markers = ["integration: requires a cloud JAR; run with pytest -m integration tests/integration/"]
 
 [tool.coverage.report]
 show_missing = true
