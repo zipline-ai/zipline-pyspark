@@ -5,7 +5,7 @@ from typing import Optional
 
 from pyspark.sql import DataFrame, SparkSession
 
-from ai.chronon.pyspark.jupyter import _parse_date
+from ai.chronon.pyspark.jupyter.session import ChrononSession
 
 
 def _sanitize(name: Optional[str]) -> Optional[str]:
@@ -15,25 +15,7 @@ def _sanitize(name: Optional[str]) -> Optional[str]:
     return re.sub(r"[^a-zA-Z0-9_]", "_", name)
 
 
-def _compile_to_file(staging_query, chronon_root: str, conf_path: str) -> None:
-    """Compile a staging query via the chronon compile infrastructure and write to conf_path.
-
-    Uses load_teams + update_metadata to apply namespace propagation and team conf/env
-    merging, then serializes with thrift_simple_json — the same path as the CLI compile
-    step, but operating on an in-memory object rather than scanning a folder.
-
-    Requires staging_query.metaData.name and staging_query.metaData.team to be set.
-    """
-    from ai.chronon.cli.compile.parse_teams import load_teams, update_metadata
-    from ai.chronon.cli.compile.serializer import thrift_simple_json
-
-    teams_dict = load_teams(chronon_root, print=False)
-    update_metadata(staging_query, teams_dict)
-    with open(conf_path, "w") as f:
-        f.write(thrift_simple_json(staging_query))
-
-
-class BatchStagingQuery:
+class JupyterStagingQuery:
     """Executes a Chronon StagingQuery by delegating to the Scala batch driver.
 
     Compiles the staging-query config into ``tmp_dir`` (running the same namespace
@@ -97,11 +79,9 @@ class BatchStagingQuery:
             end_date: Inclusive end partition (YYYY-MM-DD or YYYYMMDD).
             step_days: Optional maximum step size in days passed to the driver.
         """
-        end_date = _parse_date(end_date).strftime("%Y-%m-%d")
-
         tmp_dir = self._tmp_dir or tempfile.mkdtemp(prefix="chronon_staging_query_")
         conf_path = os.path.join(tmp_dir, "staging_query.json")
-        _compile_to_file(self.staging_query, self._chronon_root, conf_path)
+        ChrononSession.compile_to_file(self.staging_query, self._chronon_root, conf_path)
 
         self._invoke_driver(conf_path, end_date, step_days)
 
