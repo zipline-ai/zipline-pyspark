@@ -35,42 +35,58 @@ class TestOutputTable:
 
 
 class TestInvokeDriver:
+    # Base arg count: subcommand + 5 flag pairs = 11
+    _BASE_ARGS = 11
+
     def _make_spark(self):
         spark = MagicMock()
-        spark.sparkContext._gateway.new_array.return_value = [None] * 10
+        spark.sparkContext._gateway.new_array.return_value = [None] * 20
         return spark
 
     def test_basic_args_passed_to_jvm(self):
         spark = self._make_spark()
         jsq = JupyterStagingQuery(_make_sq(), spark)
-        jsq._invoke_driver("/tmp/conf.json", "2026-04-01", None)
+        jsq._invoke_driver("/tmp/conf.json", "2026-04-01")
 
         jvm = spark._jvm
-        jvm.ai.chronon.spark.batch.StagingQuery.main.assert_called_once()
+        jvm.ai.chronon.spark.Driver.main.assert_called_once()
 
     def test_step_days_included_when_set(self):
         spark = self._make_spark()
         jsq = JupyterStagingQuery(_make_sq(), spark)
-
-        with patch.object(spark._jvm.ai.chronon.spark.batch.StagingQuery, "main"):
-            jsq._invoke_driver("/tmp/conf.json", "2026-04-01", 7)
+        jsq._invoke_driver("/tmp/conf.json", "2026-04-01", step_days=7)
 
         gateway = spark.sparkContext._gateway
-        # 6 args: --conf-path, path, --end-date, date, --step-days, 7
-        gateway.new_array.assert_called_once_with(spark._jvm.String, 6)
+        gateway.new_array.assert_called_once_with(spark._jvm.String, self._BASE_ARGS + 2)
 
     def test_no_step_days_omits_flag(self):
         spark = self._make_spark()
         jsq = JupyterStagingQuery(_make_sq(), spark)
-        jsq._invoke_driver("/tmp/conf.json", "2026-04-01", None)
+        jsq._invoke_driver("/tmp/conf.json", "2026-04-01")
 
         gateway = spark.sparkContext._gateway
-        # 4 args: --conf-path, path, --end-date, date
-        gateway.new_array.assert_called_once_with(spark._jvm.String, 4)
+        gateway.new_array.assert_called_once_with(spark._jvm.String, self._BASE_ARGS)
+
+    def test_start_partition_included_when_set(self):
+        spark = self._make_spark()
+        jsq = JupyterStagingQuery(_make_sq(), spark)
+        jsq._invoke_driver("/tmp/conf.json", "2026-04-01", start_date="2026-03-01")
+
+        gateway = spark.sparkContext._gateway
+        gateway.new_array.assert_called_once_with(spark._jvm.String, self._BASE_ARGS + 2)
 
 
 class TestRun:
-    def _run(self, sq, spark, tmp_path, end_date="2026-04-01", step_days=None):
+    _DEFAULT_INVOKE_KWARGS = dict(
+        start_date=None,
+        step_days=None,
+        enable_auto_expand=True,
+        force_overwrite=False,
+        run_first_hole=True,
+    )
+
+    def _run(self, sq, spark, tmp_path, **run_kwargs):
+        end_date = run_kwargs.pop("end_date", "2026-04-01")
         jsq = JupyterStagingQuery(sq, spark, tmp_dir=str(tmp_path))
         expected_df = MagicMock()
         spark.table.return_value = expected_df
@@ -82,7 +98,7 @@ class TestRun:
             ) as mock_compile,
             patch.object(jsq, "_invoke_driver") as mock_invoke,
         ):
-            result = jsq.run(end_date, step_days=step_days)
+            result = jsq.run(end_date, **run_kwargs)
 
         return result, expected_df, mock_invoke, mock_compile, conf_path
 
@@ -91,15 +107,35 @@ class TestRun:
         _, _, _, mock_compile, conf_path = self._run(_make_sq(), spark, tmp_path)
         assert mock_compile.call_args[0][2] == conf_path
 
-    def test_driver_called_with_correct_args(self, tmp_path):
+    def test_driver_called_with_defaults(self, tmp_path):
         spark = MagicMock()
         _, _, mock_invoke, _, conf_path = self._run(_make_sq(), spark, tmp_path)
-        mock_invoke.assert_called_once_with(conf_path, "2026-04-01", None)
+        mock_invoke.assert_called_once_with(conf_path, "2026-04-01", **self._DEFAULT_INVOKE_KWARGS)
 
     def test_step_days_forwarded(self, tmp_path):
         spark = MagicMock()
         _, _, mock_invoke, _, conf_path = self._run(_make_sq(), spark, tmp_path, step_days=7)
-        mock_invoke.assert_called_once_with(conf_path, "2026-04-01", 7)
+        mock_invoke.assert_called_once_with(
+            conf_path, "2026-04-01", **{**self._DEFAULT_INVOKE_KWARGS, "step_days": 7}
+        )
+
+    def test_start_date_forwarded(self, tmp_path):
+        spark = MagicMock()
+        _, _, mock_invoke, _, conf_path = self._run(
+            _make_sq(), spark, tmp_path, start_date="2026-03-01"
+        )
+        mock_invoke.assert_called_once_with(
+            conf_path, "2026-04-01", **{**self._DEFAULT_INVOKE_KWARGS, "start_date": "2026-03-01"}
+        )
+
+    def test_force_overwrite_forwarded(self, tmp_path):
+        spark = MagicMock()
+        _, _, mock_invoke, _, conf_path = self._run(
+            _make_sq(), spark, tmp_path, force_overwrite=True
+        )
+        mock_invoke.assert_called_once_with(
+            conf_path, "2026-04-01", **{**self._DEFAULT_INVOKE_KWARGS, "force_overwrite": True}
+        )
 
     def test_returns_output_table_dataframe(self, tmp_path):
         spark = MagicMock()
@@ -126,8 +162,8 @@ class TestInvokeDriverJarMissing:
     """Replicates the real-world TypeError when the Chronon JAR is absent from the classpath.
 
     Uses a plain SparkSession (no spark.jars set) so that Py4J returns a JavaPackage for
-    ai.chronon.spark.batch.StagingQuery instead of the actual class.  Calling .main() on a
-    JavaPackage raises TypeError: 'JavaPackage' object is not callable.
+    ai.chronon.spark.Driver instead of the actual class.  Calling .main() on a JavaPackage
+    raises TypeError: 'JavaPackage' object is not callable.
     """
 
     def test_raises_when_jar_not_on_classpath(self, spark, tmp_path):
@@ -138,5 +174,5 @@ class TestInvokeDriverJarMissing:
         (tmp_path / "staging_query.json").write_text("{}")
 
         jsq = JupyterStagingQuery(sq, spark)
-        with pytest.raises(RuntimeError, match="ai.chronon.spark.batch.StagingQuery"):
-            jsq._invoke_driver(conf_path, "2026-01-01", None)
+        with pytest.raises(RuntimeError, match="ai.chronon.spark.Driver"):
+            jsq._invoke_driver(conf_path, "2026-01-01")

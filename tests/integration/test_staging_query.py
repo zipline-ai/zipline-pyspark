@@ -90,14 +90,14 @@ def _make_sq(cloud: str, name: str) -> object:
 
 @pytest.mark.integration
 class TestDimListingsExport:
-    def _run(self, spark, cloud, tmp_path, end_date="2025-01-03", step_days=10):
+    def _run(self, spark, cloud, tmp_path, end_date="2025-01-03", start_date=None, step_days=10):
         conf_path = tmp_path / "staging_query.json"
         conf_path.write_text(_conf_json(cloud, "dim_listings", _DIM_LISTINGS_QUERY))
 
         jsq = JupyterStagingQuery(_make_sq(cloud, "dim_listings"), spark, tmp_dir=str(tmp_path))
 
         with patch("ai.chronon.pyspark.jupyter.session.ChrononSession.compile_to_file"):
-            return jsq.run(end_date, step_days=step_days)
+            return jsq.run(end_date, start_date=start_date, step_days=step_days)
 
     def test_output_table_has_rows(self, spark, cloud, tmp_path):
         result = self._run(spark, cloud, tmp_path)
@@ -113,6 +113,11 @@ class TestDimListingsExport:
         result = self._run(spark, cloud, tmp_path, end_date="2025-01-02")
         dates = {row["ds"] for row in result.select("ds").collect()}
         assert all(d <= "2025-01-02" for d in dates), f"Unexpected dates after end_date: {dates}"
+
+    def test_output_respects_start_date(self, spark, cloud, tmp_path):
+        result = self._run(spark, cloud, tmp_path, start_date="2025-01-02", end_date="2025-01-03")
+        dates = {row["ds"] for row in result.select("ds").collect()}
+        assert all(d >= "2025-01-02" for d in dates), f"Unexpected dates before start_date: {dates}"
 
 
 @pytest.mark.integration

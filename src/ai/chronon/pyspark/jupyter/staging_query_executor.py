@@ -53,12 +53,35 @@ class JupyterStagingQuery:
         meta = self.staging_query.metaData
         return f"{meta.outputNamespace}.{_sanitize(meta.name)}"
 
-    def _invoke_driver(self, conf_path: str, end_date: str, step_days: Optional[int]) -> None:
-        """Call ai.chronon.spark.batch.StagingQuery.main() via the Py4J gateway."""
+    def _invoke_driver(
+        self,
+        conf_path: str,
+        end_date: str,
+        start_date: Optional[str] = None,
+        step_days: Optional[int] = None,
+        enable_auto_expand: bool = True,
+        force_overwrite: bool = False,
+        run_first_hole: bool = True,
+    ) -> None:
+        """Call ai.chronon.spark.Driver.main() with the staging-query-backfill subcommand."""
         gateway = self.spark.sparkContext._gateway
         jvm = self.spark._jvm
 
-        cli_args = ["--conf-path", conf_path, "--end-date", end_date]
+        cli_args = [
+            "staging-query-backfill",
+            "--conf-path",
+            conf_path,
+            "--end-date",
+            end_date,
+            "--enable-auto-expand",
+            str(enable_auto_expand).lower(),
+            "--force-overwrite",
+            str(force_overwrite).lower(),
+            "--run-first-hole",
+            str(run_first_hole).lower(),
+        ]
+        if start_date is not None:
+            cli_args += ["--start-partition", start_date]
         if step_days is not None:
             cli_args += ["--step-days", str(step_days)]
 
@@ -67,13 +90,13 @@ class JupyterStagingQuery:
             java_args[i] = arg
 
         try:
-            jvm.ai.chronon.spark.batch.StagingQuery.main(java_args)
+            jvm.ai.chronon.spark.Driver.main(java_args)
         except TypeError:
             conf = self.spark.sparkContext.getConf()
             jars = conf.get("spark.jars", "(not set)")
             extra_cp = conf.get("spark.driver.extraClassPath", "(not set)")
             raise RuntimeError(
-                "Class ai.chronon.spark.batch.StagingQuery not found on the JVM classpath. "
+                "Class ai.chronon.spark.Driver not found on the JVM classpath. "
                 "Load the Chronon batch JAR via ChrononSession or spark.jars.\n"
                 f"  spark.jars                    = {jars}\n"
                 f"  spark.driver.extraClassPath   = {extra_cp}"
@@ -82,18 +105,38 @@ class JupyterStagingQuery:
     def run(
         self,
         end_date: str,
+        start_date: Optional[str] = None,
         step_days: Optional[int] = None,
+        enable_auto_expand: bool = True,
+        force_overwrite: bool = False,
+        run_first_hole: bool = True,
     ) -> DataFrame:
-        """Compile the config, run the Scala driver, and return the output table.
+        """
+        Compile the config, run the Scala staging-query-backfill driver.
 
         Args:
             end_date: Inclusive end partition (YYYY-MM-DD or YYYYMMDD).
-            step_days: Optional maximum step size in days passed to the driver.
+            start_date: Optional inclusive start partition. When omitted the driver
+                determines the start from existing table state.
+            step_days: Maximum days per step. Falls back to the value in executionInfo,
+                then defaults to 30.
+            enable_auto_expand: Auto-expand the output table when new columns appear.
+            force_overwrite: Overwrite already-populated partitions.
+            run_first_hole: When True (default), fill the first unfilled partition range
+                even if later partitions already exist.
         """
         tmp_dir = self._tmp_dir or tempfile.mkdtemp(prefix="chronon_staging_query_")
         conf_path = os.path.join(tmp_dir, "staging_query.json")
         ChrononSession.compile_to_file(self.staging_query, self._chronon_root, conf_path)
 
-        self._invoke_driver(conf_path, end_date, step_days)
+        self._invoke_driver(
+            conf_path,
+            end_date,
+            start_date=start_date,
+            step_days=step_days,
+            enable_auto_expand=enable_auto_expand,
+            force_overwrite=force_overwrite,
+            run_first_hole=run_first_hole,
+        )
 
         return self.spark.table(self.output_table)
