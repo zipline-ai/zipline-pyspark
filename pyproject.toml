@@ -37,6 +37,7 @@ target-version = ["py311"]
 profile = "black"
 line_length = 100
 known_first_party = ["ai"]
+skip_glob = ["tests/canary/*"]
 
 [tool.mypy]
 ignore_missing_imports = true
@@ -45,6 +46,10 @@ exclude = ["tests/"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "--cov=src --cov-report=term-missing --cov-fail-under=90"
+
+[tool.coverage.report]
+show_missing = true
 
 [tool.setuptools.packages.find]
 where = ["src"]

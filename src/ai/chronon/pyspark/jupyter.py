@@ -4,6 +4,7 @@ from functools import reduce
 from typing import Optional
 
 from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql.types import StructType
 
 
 def _parse_date(ds: str) -> datetime:
@@ -91,7 +92,7 @@ class JupyterStagingQuery:
             dfs.append(self.spark.sql(query))
 
         if not dfs:
-            return self.spark.createDataFrame([], schema=None)
+            return self.spark.createDataFrame([], StructType([]))
 
         # Union all step results; duplicates across boundaries are intentionally
         # preserved so callers can deduplicate by partition key if needed.

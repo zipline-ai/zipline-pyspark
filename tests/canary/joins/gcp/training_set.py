@@ -1,0 +1,61 @@
+from group_bys.gcp import purchases
+from staging_queries.gcp import checkouts_import, checkouts_notds_import
+
+from ai.chronon.types import EventSource, Join, JoinPart, Query, selects
+
+"""
+This is the "left side" of the join that will comprise our training set. It is responsible for providing the primary keys
+and timestamps for which features will be computed.
+"""
+# Source data is exported from BigQuery to Iceberg via a StagingQuery (checkouts_import).
+source = EventSource(
+    table=checkouts_import.v1.table,
+    query=Query(
+        selects=selects("user_id"),
+        time_column="ts",
+    ),
+)
+
+v1_test = Join(
+    left=source,
+    row_ids="user_id",
+    right_parts=[JoinPart(group_by=purchases.v1_test)],
+    version=0,
+)
+
+v1_hub = Join(
+    left=source,
+    row_ids="user_id",
+    right_parts=[JoinPart(group_by=purchases.v1_test)],
+    version=0,
+)
+
+v1_dev = Join(
+    left=source,
+    row_ids="user_id",
+    right_parts=[JoinPart(group_by=purchases.v1_dev)],
+    version=0,
+)
+
+source_notds = EventSource(
+    table=checkouts_notds_import.v1.table,
+    query=Query(
+        selects=selects("user_id"),
+        time_column="ts",
+        partition_column="notds",
+    ),
+)
+
+v1_test_notds = Join(
+    left=source_notds,
+    row_ids=["user_id"],
+    right_parts=[JoinPart(group_by=purchases.v1_test_notds)],
+    version=0,
+)
+
+v1_dev_notds = Join(
+    left=source_notds,
+    row_ids=["user_id"],
+    right_parts=[JoinPart(group_by=purchases.v1_dev_notds)],
+    version=0,
+)

@@ -1,0 +1,102 @@
+from group_bys.azure import dim_listings, dim_merchants
+from staging_queries.azure import exports
+
+from ai.chronon.types import Derivation, EventSource, Join, JoinPart, Query, selects
+
+"""
+This Join combines user activity events with:
+1. User-level behavioral features (from user_activities GroupBy)
+2. Listing-level attributes (from dim_listings GroupBy)
+
+Left side: Raw user activity events
+Right parts:
+- User behavioral aggregations (keyed by user_id)
+- Listing dimension attributes (keyed by listing_id)
+"""
+
+# Left side: Raw user activity events from PubSub export
+source = EventSource(
+    # This will be the BigQuery table that receives the PubSub data
+    table=exports.user_activities.table,
+    query=Query(
+        selects=selects(user_id="user_id", listing_id="listing_id", row_id="event_id"),
+        time_column="event_time_ms",
+    ),
+)
+
+# Join with user behavioral features and listing attributes
+v2 = Join(
+    left=source,
+    row_ids=["event_id"],  # TODO -- kill this once the SPJ API change goes through
+    right_parts=[
+        # user activity features disabled as streaming sources aren't ready yet
+        # User behavioral features (aggregated over time windows)
+        # JoinPart(
+        #     group_by=user_activities.v1,
+        # ),
+        # Listing dimension attributes (point-in-time lookup)
+        JoinPart(
+            group_by=dim_listings.v3,
+        ),
+        # Listing dimension attributes (point-in-time lookup)
+        JoinPart(group_by=dim_merchants.v2, prefix="merchant_"),
+    ],
+    online=True,
+    output_namespace="data",
+    step_days=30,
+    enable_stats_compute=True,
+)
+
+# Example join with some derivations
+derivations_v3 = Join(
+    left=source,
+    row_ids=["event_id"],  # TODO -- kill this once the SPJ API change goes through
+    right_parts=[
+        JoinPart(
+            group_by=dim_listings.v3,
+        ),
+        # user activity features disabled as streaming sources aren't ready yet
+        # JoinPart(
+        #     group_by=user_activities.v1,
+        # ),
+    ],
+    derivations=[
+        Derivation(name="is_listing_heavy", expression="IF(listing_id_weight_grams > 1000, 1, 0)"),
+        # with a built-in Spark fn
+        Derivation(
+            name="is_item_handmade",
+            expression="array_contains(split(listing_id_tags, ','), 'handmade')",
+        ),
+        Derivation(name="price_log", expression="log1p(listing_id_price_cents)"),
+        Derivation(
+            name="price_bucket",
+            expression="""
+                CASE
+                    WHEN listing_id_price_cents < 1000 THEN 0
+                    WHEN listing_id_price_cents < 5000 THEN 1
+                    WHEN listing_id_price_cents < 10000 THEN 2
+                    WHEN listing_id_price_cents < 50000 THEN 3
+                    ELSE 4
+                END
+            """,
+        ),
+        Derivation(name="*", expression="*"),
+    ],
+    online=True,
+    output_namespace="data",
+    step_days=30,
+)
+
+pc_v2 = Join(
+    left=dim_listings.pc_source,
+    row_ids=[],  # TODO -- kill this once the SPJ API change goes through
+    right_parts=[
+        JoinPart(
+            group_by=dim_listings.pc_v3,
+        ),
+    ],
+    online=False,
+    output_namespace="data",
+    step_days=30,
+    enable_stats_compute=False,
+)
