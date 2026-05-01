@@ -1,6 +1,10 @@
+import logging
 from typing import Dict, List, Optional
 
 from pyspark.sql import SparkSession
+from pyspark.sql.utils import AnalysisException
+
+logger = logging.getLogger(__name__)
 
 
 class ChrononSession:
@@ -30,6 +34,35 @@ class ChrononSession:
         for k, v in self.config.items():
             builder = builder.config(k, v)
         return builder.getOrCreate()
+
+    @staticmethod
+    def apply_execution_conf(spark: SparkSession, compiled_obj, mode: Optional[str] = None) -> None:
+        """Apply Spark confs from a compiled Chronon object's executionInfo to *spark*.
+
+        Reads ``metaData.executionInfo.conf.common`` and, when *mode* is given,
+        ``conf.modeConfigs[mode]`` (mode-specific values win on conflicts).
+        Settings that are immutable at runtime are logged as warnings and skipped.
+        """
+        try:
+            conf = compiled_obj.metaData.executionInfo.conf
+        except AttributeError:
+            return
+        if conf is None:
+            return
+
+        settings: Dict[str, str] = {}
+        if conf.common:
+            settings.update(conf.common)
+        if mode and conf.modeConfigs:
+            settings.update(conf.modeConfigs.get(mode, {}))
+
+        for key, value in settings.items():
+            try:
+                spark.conf.set(key, value)
+            except AnalysisException:
+                logger.warning(
+                    "Skipping immutable Spark conf %s (must be set at session creation)", key
+                )
 
     @staticmethod
     def compile_to_file(staging_query, chronon_root: str, conf_path: str) -> None:

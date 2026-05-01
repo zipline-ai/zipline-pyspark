@@ -132,6 +132,7 @@ class JupyterStagingQuery:
         tmp_dir = self._tmp_dir or tempfile.mkdtemp(prefix="chronon_staging_query_")
         conf_path = os.path.join(tmp_dir, "staging_query.json")
         ChrononSession.compile_to_file(self.staging_query, self._chronon_root, conf_path)
+        ChrononSession.apply_execution_conf(self.spark, self.staging_query)
 
         self._invoke_driver(
             conf_path,

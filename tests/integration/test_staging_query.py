@@ -73,12 +73,15 @@ def _conf_json(cloud: str, name: str, query: str, partition_col: str = "ds") -> 
     )
 
 
-def _make_sq(cloud: str, name: str) -> object:
+def _make_sq(cloud: str, name: str, extra_conf: dict = None) -> object:
     """Minimal staging-query stub: only the fields JupyterStagingQuery reads directly."""
+    conf = SimpleNamespace(common=extra_conf or {}, modeConfigs=None)
+    execution_info = SimpleNamespace(conf=conf)
     return SimpleNamespace(
         metaData=SimpleNamespace(
             name=f"{cloud}.integration_test.{name}__0",
             outputNamespace="data",
+            executionInfo=execution_info,
         )
     )
 
@@ -86,6 +89,23 @@ def _make_sq(cloud: str, name: str) -> object:
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+class TestExecutionConfApplied:
+    def test_conf_from_staging_query_set_on_session(self, spark, cloud, tmp_path):
+        conf_path = tmp_path / "staging_query.json"
+        conf_path.write_text(_conf_json(cloud, "dim_listings", _DIM_LISTINGS_QUERY))
+
+        sq = _make_sq(
+            cloud, "dim_listings", extra_conf={"spark.chronon.integration.test": "applied"}
+        )
+        jsq = JupyterStagingQuery(sq, spark, tmp_dir=str(tmp_path))
+
+        with patch("ai.chronon.pyspark.jupyter.session.ChrononSession.compile_to_file"):
+            jsq.run("2025-01-03", start_date="2025-01-01", step_days=10)
+
+        assert spark.conf.get("spark.chronon.integration.test") == "applied"
 
 
 @pytest.mark.integration

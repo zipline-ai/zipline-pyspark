@@ -1,4 +1,5 @@
 import sys
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from ai.chronon.pyspark.jupyter.session import ChrononSession
@@ -75,3 +76,68 @@ class TestChrononSessionCompileToFile:
         with patch.dict(sys.modules, modules):
             ChrononSession.compile_to_file(sq, "/root", conf_path)
         mock_update.assert_called_once_with(sq, teams)
+
+
+def _make_compiled_obj(common=None, mode_configs=None):
+    """Build a minimal compiled-object stub with executionInfo.conf populated."""
+    conf = SimpleNamespace(common=common, modeConfigs=mode_configs)
+    execution_info = SimpleNamespace(conf=conf)
+    meta = SimpleNamespace(executionInfo=execution_info)
+    return SimpleNamespace(metaData=meta)
+
+
+class TestChrononSessionApplyExecutionConf:
+    def test_common_confs_applied_to_spark(self, spark):
+        obj = _make_compiled_obj(common={"spark.sql.shuffle.partitions": "8"})
+        ChrononSession.apply_execution_conf(spark, obj)
+        assert spark.conf.get("spark.sql.shuffle.partitions") == "8"
+
+    def test_multiple_common_confs_all_applied(self, spark):
+        obj = _make_compiled_obj(
+            common={"spark.sql.shuffle.partitions": "16", "spark.default.parallelism": "32"}
+        )
+        ChrononSession.apply_execution_conf(spark, obj)
+        assert spark.conf.get("spark.sql.shuffle.partitions") == "16"
+        assert spark.conf.get("spark.default.parallelism") == "32"
+
+    def test_mode_conf_merged_and_overrides_common(self, spark):
+        obj = _make_compiled_obj(
+            common={"spark.sql.shuffle.partitions": "8", "spark.default.parallelism": "16"},
+            mode_configs={"backfill": {"spark.sql.shuffle.partitions": "64"}},
+        )
+        ChrononSession.apply_execution_conf(spark, obj, mode="backfill")
+        assert spark.conf.get("spark.sql.shuffle.partitions") == "64"
+        assert spark.conf.get("spark.default.parallelism") == "16"
+
+    def test_no_execution_info_is_noop(self, spark):
+        obj = SimpleNamespace(metaData=SimpleNamespace())
+        before = spark.conf.get("spark.sql.shuffle.partitions")
+        ChrononSession.apply_execution_conf(spark, obj)
+        assert spark.conf.get("spark.sql.shuffle.partitions") == before
+
+    def test_none_conf_is_noop(self, spark):
+        obj = _make_compiled_obj(common=None)
+        before = spark.conf.get("spark.sql.shuffle.partitions")
+        ChrononSession.apply_execution_conf(spark, obj)
+        assert spark.conf.get("spark.sql.shuffle.partitions") == before
+
+    def test_conf_object_none_is_noop(self, spark):
+        execution_info = SimpleNamespace(conf=None)
+        obj = SimpleNamespace(metaData=SimpleNamespace(executionInfo=execution_info))
+        before = spark.conf.get("spark.sql.shuffle.partitions")
+        ChrononSession.apply_execution_conf(spark, obj)
+        assert spark.conf.get("spark.sql.shuffle.partitions") == before
+
+    def test_immutable_conf_warns_and_continues(self, spark):
+        from pyspark.sql.utils import AnalysisException
+
+        mock_spark = MagicMock()
+        mock_spark.conf.set.side_effect = [
+            AnalysisException("immutable"),
+            None,
+        ]
+        obj = _make_compiled_obj(
+            common={"spark.master": "local", "spark.sql.shuffle.partitions": "8"}
+        )
+        ChrononSession.apply_execution_conf(mock_spark, obj)
+        assert mock_spark.conf.set.call_count == 2
