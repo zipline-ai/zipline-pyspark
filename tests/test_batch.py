@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch
 
-from ai.chronon.pyspark.batch import BatchStagingQuery, _sanitize
+from ai.chronon.pyspark.jupyter.staging_query_executor import BatchStagingQuery, _sanitize
 
 
 def _make_sq(name="test_sq", namespace="test_ns"):
@@ -74,7 +74,9 @@ class TestRun:
         conf_path = str(tmp_path / "staging_query.json")
 
         with (
-            patch("ai.chronon.pyspark.batch._compile_to_file") as mock_compile,
+            patch(
+                "ai.chronon.pyspark.jupyter.session.ChrononSession.compile_to_file"
+            ) as mock_compile,
             patch.object(bsq, "_invoke_driver") as mock_invoke,
         ):
             result = bsq.run(end_date, step_days=step_days)
@@ -116,7 +118,7 @@ class TestRun:
         bsq = BatchStagingQuery(_make_sq(), spark)
 
         with (
-            patch("ai.chronon.pyspark.batch._compile_to_file"),
+            patch("ai.chronon.pyspark.jupyter.session.ChrononSession.compile_to_file"),
             patch.object(bsq, "_invoke_driver"),
             patch("tempfile.mkdtemp", return_value=str(tmp_path)) as mock_mkdtemp,
         ):
