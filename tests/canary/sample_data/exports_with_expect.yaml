@@ -1,0 +1,39 @@
+---
+data.gcp_exports_user_activities__0:
+    # |event_id|event_time_ms|ingested_time_ms|user_id|session_id|device_type|country_code|listing_id|event_type|ds |
+  - ["test0", !epoch 2025-01-01T00:01:00Z, !epoch 2025-01-01T00:10:00Z, "user_1", "session_1", "mobile", "CL", 1, "view", "2025-01-01 00:00:00"]
+  - ["test1", !epoch 2025-01-02T00:01:00Z, !epoch 2025-01-02T00:10:00Z, "user_1", "session_2", "mobile", "CL", 1, "view", "2025-01-02 00:00:00"]
+  - ["test2", !epoch 2025-01-02T00:02:00Z, !epoch 2025-01-02T00:11:00Z, "user_1", "session_3", "mobile", "CL", 1, "view", "2025-01-02 00:00:00"]
+  - ["test3", !epoch 2025-01-03T00:03:00Z, !epoch 2025-01-03T00:09:00Z, "user_1", "session_4", "mobile", "CL", 1, "view", "2025-01-03 00:00:00"]
+  - ["test4", !epoch 2025-01-03T00:03:10Z, !epoch 2025-01-03T00:08:10Z, "user_1", "session_5", "mobile", "CL", 1, "view", "2025-01-03 00:00:00"]
+  - ["test5", !epoch 2025-01-03T00:03:11Z, !epoch 2025-01-03T00:12:00Z, "user_1", "session_6", "mobile", "CL", 1, "view", "2025-01-03 00:00:00"]
+#|listing_id|merchant_id|created_at_ts|updated_at_ts|is_active|headline|brief_description|long_description|price_cents|currency|inventory_count|primary_category|main_image_path|secondary_image_paths|seo_slug|weight_grams|tags|ds |
+data.gcp_exports_dim_listings__0:
+  - [1, 1, !epoch 2024-12-31T01:01:00Z, !epoch 2024-12-31T01:01:00Z, true, "listing", "zero listing", "mega listing", 10, "USD", 1, "bed", "someimgage", "second_image", "slug", 100, "tag", "2024-12-31 00:00:00"]
+  - [1, 1, !epoch 2024-12-31T01:01:00Z, !epoch 2025-01-01T01:02:00Z, true, "listing", "first listing", "mega listing", 10, "USD", 1, "bed", "someimgage", "second_image", "slug", 100, "tag", "2025-01-01 00:00:00"]
+  - [1, 1, !epoch 2024-12-31T01:01:00Z, !epoch 2025-01-02T01:03:00Z, true, "listing", "first listing update", "mega listing", 100, "USD", 1, "bed", "someimgage", "second_image", "slug", 100, "tag", "2025-01-02 00:00:00"]
+  - [1, 1, !epoch 2024-12-31T01:01:00Z, !epoch 2025-01-03T01:05:00Z, true, "listing", "second listing update", "mega listing", 1000, "USD", 1, "bed", "someimgage", "second_image", "slug", 100, "tag", "2025-01-03 00:00:00"]
+
+__expected__.data.gcp_demo_derivations_v1__2:
+  - - 1            #bigint  : listing_id
+    - !epoch 2025-01-01T01:01:00Z #bigint  : ts
+    - user_1       #string  : user_id
+    - test_1       #string  : row_id
+    - 1            #int     : is_listing_heavy
+    - false        #boolean : is_item_handmade
+    - listing      #string  : listing_id_headline
+    - 1            #int     : listing_id_is_in_stock
+    - true         #boolean : listing_id_is_active
+    - tag          #string  : listing_id_tags
+    - first listing #string  : listing_id_long_description
+    - 10           #bigint  : listing_id_price_cents
+    - someimgage   #string  : listing_id_main_image_path
+    - second_image #string  : listing_id_secondary_image_paths
+    - 1            #int     : listing_id_is_expensive
+    - bed          #string  : listing_id_primary_category
+    - USD          #string  : listing_id_currency
+    - 1            #bigint  : listing_id_inventory_count
+    - 1            #bigint  : listing_id_merchant_id
+    - 10           #bigint  : listing_id_weight_grams
+    - listing      #string  : listing_id_brief_description
+    - 2025-01-01 00:00:00   #string  : ds

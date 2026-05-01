@@ -41,6 +41,6 @@ jobs:
         run: |
           pip install "pyspark>=3.5" pytest pytest-cov
           pip install --no-deps -e .
-      - run: pytest tests/ -v --cov=src --cov-report=term-missing --cov-fail-under=50
+      - run: pytest tests/ -v
         env:
           SPARK_LOCAL_IP: "127.0.0.1"

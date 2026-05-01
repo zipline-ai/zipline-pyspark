@@ -2,11 +2,7 @@ from datetime import datetime
 
 import pytest
 
-from ai.chronon.pyspark.jupyter import (
-    JupyterStagingQuery,
-    _parse_date,
-    _render_query,
-)
+from ai.chronon.pyspark.jupyter import JupyterStagingQuery, _parse_date, _render_query
 
 
 class TestParseDate:
@@ -92,6 +88,12 @@ class TestJupyterStagingQueryChunking:
         result = JupyterStagingQuery(sq, spark).run(end_date="2026-04-01")
         assert result.count() == 1
         assert result.collect()[0]["x"] == 42
+
+    def test_inverted_range_returns_empty_dataframe(self, spark):
+        result = JupyterStagingQuery(self._sq("SELECT '{{ start_date }}' AS ds"), spark).run(
+            start_date="2026-04-03", end_date="2026-04-01"
+        )
+        assert result.count() == 0
 
     def test_enable_auto_expand_extends_start(self, spark):
         # With auto-expand, the start is pushed back by step_days, producing one extra step.

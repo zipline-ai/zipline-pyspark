@@ -68,7 +68,13 @@ pre-commit install
 ### Running tests
 
 ```bash
-pytest tests/ -v --cov=src --cov-report=term-missing
+pytest tests/ -v
+```
+
+Coverage is enforced automatically (configured in `pyproject.toml`). To skip the coverage check locally:
+
+```bash
+pytest tests/ -v --no-cov
 ```
 
 ## Roadmap
@@ -93,7 +99,7 @@ A lightweight test harness that lets unit tests run without a real cluster.
 - Add `[dev]` optional dependencies to `pyproject.toml` (`pytest`, `pytest-spark`, `pyspark` local mode) so contributors get a working environment with one command.
 - Publish to PyPI under `zipline-pyspark` and document the `%pip install zipline-pyspark` notebook workflow.
 - Add a `CONTRIBUTING.md` with environment setup, test instructions, and coding conventions.
-- Add CI (GitHub Actions) running `pytest` on push and pull request.
+- ~~Add CI (GitHub Actions) running `pytest` on push and pull request.~~ ✓ Done
 
 ## Credits
 

@@ -1,0 +1,12 @@
+# Auto-generated test data skeleton. Fill in values below.
+# Format: table_name: [[row1_values], [row2_values], ...]
+
+# listing_id (bigint), merchant_id (bigint), created_at_ts (timestamp), updated_at_ts (timestamp), is_active (boolean), headline (string), brief_description (string), long_description (string), price_cents (bigint), currency (string), inventory_count (bigint), primary_category (string), main_image_path (string), secondary_image_paths (string), seo_slug (string), weight_grams (bigint), tags (string), ds (timestamp)
+demo.`dim_listings`:
+  - [100, 100, 1704153600000, 1704153600000, false, "value_1", "value_1", "value_1", 100, "value_1", 100, "value_1", "value_1", "value_1", "value_1", 100, "value_1", 1704153600000]
+  - [200, 200, 1704240000000, 1704240000000, true, "value_2", "value_2", "value_2", 200, "value_2", 200, "value_2", "value_2", "value_2", "value_2", 200, "value_2", 1704240000000]
+
+# event_id (string), event_time_ms (bigint), ingested_time_ms (bigint), user_id (string), session_id (string), device_type (string), country_code (string), listing_id (bigint), event_type (string)
+demo.`user-activities`:
+  - ["value_1", 100, 100, "value_1", "value_1", "value_1", "value_1", 100, "value_1"]
+  - ["value_2", 200, 200, "value_2", "value_2", "value_2", "value_2", 200, "value_2"]

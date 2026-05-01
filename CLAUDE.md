@@ -46,9 +46,26 @@ The package lives under `src/ai/chronon/pyspark/` using a PEP 420 implicit names
 - `_render_query` — substitutes `{{ start_date }}` / `{{ end_date }}` placeholders (with optional function-call syntax) in SQL strings
 - `JupyterStagingQuery.run` — date-range chunking loop; `enable_auto_expand=True` extends `start_date` back by one `step_days`
 
+**`batch.py` — `_compile_to_file(staging_query, chronon_root, conf_path)`:**
+- Requires `staging_query.metaData.name` and `.team` to be set before calling.
+- Calls `ai.chronon.cli.compile.parse_teams.load_teams(chronon_root)` (reads `teams.py` from `chronon_root`) then `update_metadata` (namespace propagation, team conf merging), then serializes with `ai.chronon.cli.compile.serializer.thrift_simple_json`.
+- Does NOT set `metaData.sourceFile` — that is set by the CLI `from_folder` loop after `from_file`.
+- `BatchStagingQuery` wraps this: compiles to a temp dir then calls the Scala driver via Py4J.
+
+**Compile pipeline (how the CLI produces canary files):**
+1. `parse_configs.from_file(file_path, cls, input_dir)` — imports the module, finds all `cls` instances, deep-copies each, sets `metaData.name = "{team}.{module}.{var}__{version}"` and `metaData.team = module.split(".")[0]`. Requires `chronon_root` (parent of `input_dir`) on `sys.path`.
+2. `parse_teams.update_metadata(obj, teams_dict)` — merges team namespace/conf/env onto the object.
+3. `airflow_helpers.set_airflow_deps(obj)` — **no-op for StagingQuery** (airflow deps are written into `metaData.customJson` at object-creation time by the `StagingQuery` wrapper in `ai.chronon.staging_query`).
+4. Set `obj.metaData.sourceFile = os.path.relpath(file_path, chronon_root)`.
+5. Serialize with `thrift_simple_json`.
+
+**Type distinction:** `ai.chronon.types.StagingQuery` is the Python wrapper/constructor (sets `customJson`, derives team from caller filename via `utils._get_team_from_caller()`). `gen_thrift.api.ttypes.StagingQuery` is the raw thrift type used for `isinstance` checks.
+
 **Test harness (`tests/`):**
 - `conftest.py` — session-scoped `SparkSession` fixture (local mode, `spark.driver.bindAddress=127.0.0.1` required on macOS/CI)
 - Zipline entity stubs are simple ad-hoc objects with `.query` and `.setups` attributes — no `zipline-ai` import needed in tests
+- `tests/canary/` — real Zipline config objects (group_bys, joins, staging_queries) organized by cloud provider (`aws/`, `azure/`, `gcp/`), with pre-compiled golden outputs in `tests/canary/compiled/`. Used for compile-pipeline regression tests (`test_canary.py`).
+- To use `parse_configs.from_file` in tests, add `tests/canary` to `sys.path` first so `staging_queries.gcp.exports` etc. are importable as top-level modules.
 
 **Dependency note:** `zipline-ai` is an internal Zipline package and is not available on public PyPI. CI installs the package with `--no-deps` and supplies `pyspark` explicitly to avoid this.
 

@@ -1,0 +1,12 @@
+# Auto-generated test data skeleton. Fill in values below.
+# Format: table_name: [[row1_values], [row2_values], ...]
+#
+# Timestamp tips:
+#   - Epoch millis (long): 1704067200000
+#   - ISO string: "2024-01-01T00:00:00"
+#   - Simple string: "2024-01-01 00:00:00"
+
+# keyBytes (binary), valueBytes (binary), joinName (string), tsMillis (bigint), schemaHash (string)
+data.loggable_response:
+  - [null, null, "value_1", 100, "value_1"]
+  - [null, null, "value_2", 200, "value_2"]
