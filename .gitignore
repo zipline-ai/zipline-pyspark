@@ -206,6 +206,9 @@ tempCodeRunnerFile.py
 # Ruff stuff:
 .ruff_cache/
 
+# Integration test JARs (~200 MB each, built from the Chronon repo)
+tests/resources/jars/*.jar
+
 # PyPI configuration file
 .pypirc
 

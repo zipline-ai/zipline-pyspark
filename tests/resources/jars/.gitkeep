@@ -1,0 +1,28 @@
+# Integration test JARs
+
+This directory holds cloud-specific Chronon assembly JARs used by the integration tests.
+The JARs are excluded from version control (see .gitignore) because they are ~200 MB each.
+
+## Required JARs
+
+| File             | Cloud target |
+|------------------|--------------|
+| cloud_aws.jar    | AWS          |
+| cloud_azure.jar  | Azure        |
+| cloud_gcp.jar    | GCP          |
+| cloud_k8s.jar    | Kubernetes   |
+
+## How to build / obtain them
+
+Build from the Chronon repo with the assembly target for the relevant cloud profile, e.g.:
+
+```bash
+# from the root of the chronon repo
+sbt "project spark_uber_jar" "set assembly / assemblyJarName := \"cloud_gcp.jar\"" assembly
+# repeat with the appropriate profile/settings for aws, azure, k8s
+```
+
+Copy or symlink the resulting JARs into this directory before running the integration tests.
+
+The integration tests skip automatically when the required JAR is absent — they are not
+expected to run in CI unless the JARs are explicitly provided.
