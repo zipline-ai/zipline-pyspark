@@ -66,7 +66,18 @@ class JupyterStagingQuery:
         for i, arg in enumerate(cli_args):
             java_args[i] = arg
 
-        jvm.ai.chronon.spark.batch.StagingQuery.main(java_args)
+        try:
+            jvm.ai.chronon.spark.batch.StagingQuery.main(java_args)
+        except TypeError:
+            conf = self.spark.sparkContext.getConf()
+            jars = conf.get("spark.jars", "(not set)")
+            extra_cp = conf.get("spark.driver.extraClassPath", "(not set)")
+            raise RuntimeError(
+                "Class ai.chronon.spark.batch.StagingQuery not found on the JVM classpath. "
+                "Load the Chronon batch JAR via ChrononSession or spark.jars.\n"
+                f"  spark.jars                    = {jars}\n"
+                f"  spark.driver.extraClassPath   = {extra_cp}"
+            ) from None
 
     def run(
         self,

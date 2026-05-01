@@ -1,4 +1,7 @@
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from ai.chronon.pyspark.jupyter.staging_query_executor import JupyterStagingQuery, _sanitize
 
@@ -117,3 +120,23 @@ class TestRun:
             jsq.run("2026-04-01")
 
         mock_mkdtemp.assert_called_once()
+
+
+class TestInvokeDriverJarMissing:
+    """Replicates the real-world TypeError when the Chronon JAR is absent from the classpath.
+
+    Uses a plain SparkSession (no spark.jars set) so that Py4J returns a JavaPackage for
+    ai.chronon.spark.batch.StagingQuery instead of the actual class.  Calling .main() on a
+    JavaPackage raises TypeError: 'JavaPackage' object is not callable.
+    """
+
+    def test_raises_when_jar_not_on_classpath(self, spark, tmp_path):
+        sq = SimpleNamespace(
+            metaData=SimpleNamespace(name="gcp.test.sq__0", outputNamespace="data")
+        )
+        conf_path = str(tmp_path / "staging_query.json")
+        (tmp_path / "staging_query.json").write_text("{}")
+
+        jsq = JupyterStagingQuery(sq, spark)
+        with pytest.raises(RuntimeError, match="ai.chronon.spark.batch.StagingQuery"):
+            jsq._invoke_driver(conf_path, "2026-01-01", None)
