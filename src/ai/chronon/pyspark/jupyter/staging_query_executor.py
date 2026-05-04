@@ -71,8 +71,8 @@ class JupyterStagingQuery:
         jvm = self.spark._jvm
 
         cli_args = [
-            "staging-query-backfill",
             "--no-exit",
+            "staging-query-backfill",
             "--conf-path",
             conf_path,
             "--end-date",
