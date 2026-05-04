@@ -80,6 +80,10 @@ def spark(cloud, warehouse_dir):
         .config("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkSessionCatalog")
         .config("spark.sql.catalog.spark_catalog.type", "hadoop")
         .config("spark.sql.catalog.spark_catalog.warehouse", str(warehouse_dir))
+        # Tell Chronon's FormatProvider and TableUtils to use Iceberg
+        .config("spark.chronon.table_write.format", "iceberg")
+        .config("spark.chronon.partition.column", "ds")
+        .config("spark.chronon.partition.format", "yyyy-MM-dd")
         .getOrCreate()
     )
 

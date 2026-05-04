@@ -7,9 +7,13 @@ automatically when the JAR is absent.
 ``compile_to_file`` is patched out because the compile step (which needs zipline-ai's
 CLI machinery) is covered by unit tests.  What we test here is the full
 JAR invocation + Iceberg read/write path.
+
+Each test writes to a unique output table (derived from pytest's tmp_path) so that
+tests are isolated even within a shared session-scoped SparkSession.
 """
 
 import json
+import re
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -18,7 +22,7 @@ import pytest
 from ai.chronon.pyspark.jupyter.staging_query_executor import JupyterStagingQuery
 
 # ---------------------------------------------------------------------------
-# Staging query fixtures
+# Queries
 # ---------------------------------------------------------------------------
 
 _DIM_LISTINGS_QUERY = """
@@ -27,13 +31,27 @@ FROM demo.dim_listings
 WHERE ds BETWEEN {{ start_date }} AND {{ end_date }}
 """
 
+# Explicit column list avoids ambiguity: demo.user_activities already has a
+# ds STRING column; we recompute ds from event_time and drop the source ds.
 _USER_ACTIVITIES_QUERY = """
 SELECT
-    *,
+    event_id, user_id, session_id, device_type, country_code,
+    listing_id, event_type, event_time,
     DATE_FORMAT(event_time, 'yyyy-MM-dd') as ds
 FROM demo.user_activities
 WHERE event_time BETWEEN {{ start_date }} AND {{ end_date }}
 """
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _table_suffix(tmp_path) -> str:
+    """Short, filesystem-safe suffix unique to this test's tmp_path."""
+    raw = re.sub(r"[^a-z0-9]", "_", tmp_path.name.lower())
+    return raw[:24]
 
 
 def _conf_json(cloud: str, name: str, query: str, partition_col: str = "ds") -> str:
@@ -94,12 +112,12 @@ def _make_sq(cloud: str, name: str, extra_conf: dict = None) -> object:
 @pytest.mark.integration
 class TestExecutionConfApplied:
     def test_conf_from_staging_query_set_on_session(self, spark, cloud, tmp_path):
+        suffix = _table_suffix(tmp_path)
+        name = f"dim_listings_{suffix}"
         conf_path = tmp_path / "staging_query.json"
-        conf_path.write_text(_conf_json(cloud, "dim_listings", _DIM_LISTINGS_QUERY))
+        conf_path.write_text(_conf_json(cloud, name, _DIM_LISTINGS_QUERY))
 
-        sq = _make_sq(
-            cloud, "dim_listings", extra_conf={"spark.chronon.integration.test": "applied"}
-        )
+        sq = _make_sq(cloud, name, extra_conf={"spark.chronon.integration.test": "applied"})
         jsq = JupyterStagingQuery(sq, spark, tmp_dir=str(tmp_path))
 
         with patch("ai.chronon.pyspark.jupyter.session.ChrononSession.compile_to_file"):
@@ -113,10 +131,12 @@ class TestDimListingsExport:
     def _run(
         self, spark, cloud, tmp_path, end_date="2025-01-03", start_date="2025-01-01", step_days=10
     ):
+        suffix = _table_suffix(tmp_path)
+        name = f"dim_listings_{suffix}"
         conf_path = tmp_path / "staging_query.json"
-        conf_path.write_text(_conf_json(cloud, "dim_listings", _DIM_LISTINGS_QUERY))
+        conf_path.write_text(_conf_json(cloud, name, _DIM_LISTINGS_QUERY))
 
-        jsq = JupyterStagingQuery(_make_sq(cloud, "dim_listings"), spark, tmp_dir=str(tmp_path))
+        jsq = JupyterStagingQuery(_make_sq(cloud, name), spark, tmp_dir=str(tmp_path))
 
         with patch("ai.chronon.pyspark.jupyter.session.ChrononSession.compile_to_file"):
             return jsq.run(end_date, start_date=start_date, step_days=step_days)
@@ -147,12 +167,12 @@ class TestUserActivitiesExport:
     def _run(
         self, spark, cloud, tmp_path, end_date="2025-01-03", start_date="2025-01-01", step_days=10
     ):
+        suffix = _table_suffix(tmp_path)
+        name = f"user_activities_{suffix}"
         conf_path = tmp_path / "staging_query.json"
-        conf_path.write_text(
-            _conf_json(cloud, "user_activities", _USER_ACTIVITIES_QUERY, "event_time")
-        )
+        conf_path.write_text(_conf_json(cloud, name, _USER_ACTIVITIES_QUERY, "event_time"))
 
-        jsq = JupyterStagingQuery(_make_sq(cloud, "user_activities"), spark, tmp_dir=str(tmp_path))
+        jsq = JupyterStagingQuery(_make_sq(cloud, name), spark, tmp_dir=str(tmp_path))
 
         with patch("ai.chronon.pyspark.jupyter.session.ChrononSession.compile_to_file"):
             return jsq.run(end_date, start_date=start_date, step_days=step_days)
