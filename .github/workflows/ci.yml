@@ -39,7 +39,7 @@ jobs:
           cache: pip
       - name: Install dependencies
         run: |
-          pip install "pyspark>=3.5" pytest pytest-cov
+          pip install "pyspark>=3.5" zipline-ai pytest pytest-cov
           pip install --no-deps -e .
       - run: pytest tests/ -v
         env:
