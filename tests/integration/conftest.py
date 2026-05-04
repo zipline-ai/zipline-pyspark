@@ -69,6 +69,7 @@ def spark(cloud, warehouse_dir):
         SparkSession.builder.master("local[2]")
         .appName(f"zipline-integration-{cloud}")
         .config("spark.driver.bindAddress", "127.0.0.1")
+        .config("spark.driver.host", "127.0.0.1")
         .config("spark.ui.enabled", "false")
         .config("spark.sql.shuffle.partitions", "2")
         .config("spark.jars", str(jar_path))

@@ -73,12 +73,15 @@ def _conf_json(cloud: str, name: str, query: str, partition_col: str = "ds") -> 
     )
 
 
-def _make_sq(cloud: str, name: str) -> object:
+def _make_sq(cloud: str, name: str, extra_conf: dict = None) -> object:
     """Minimal staging-query stub: only the fields JupyterStagingQuery reads directly."""
+    conf = SimpleNamespace(common=extra_conf or {}, modeConfigs=None)
+    execution_info = SimpleNamespace(conf=conf)
     return SimpleNamespace(
         metaData=SimpleNamespace(
             name=f"{cloud}.integration_test.{name}__0",
             outputNamespace="data",
+            executionInfo=execution_info,
         )
     )
 
@@ -89,15 +92,34 @@ def _make_sq(cloud: str, name: str) -> object:
 
 
 @pytest.mark.integration
+class TestExecutionConfApplied:
+    def test_conf_from_staging_query_set_on_session(self, spark, cloud, tmp_path):
+        conf_path = tmp_path / "staging_query.json"
+        conf_path.write_text(_conf_json(cloud, "dim_listings", _DIM_LISTINGS_QUERY))
+
+        sq = _make_sq(
+            cloud, "dim_listings", extra_conf={"spark.chronon.integration.test": "applied"}
+        )
+        jsq = JupyterStagingQuery(sq, spark, tmp_dir=str(tmp_path))
+
+        with patch("ai.chronon.pyspark.jupyter.session.ChrononSession.compile_to_file"):
+            jsq.run("2025-01-03", start_date="2025-01-01", step_days=10)
+
+        assert spark.conf.get("spark.chronon.integration.test") == "applied"
+
+
+@pytest.mark.integration
 class TestDimListingsExport:
-    def _run(self, spark, cloud, tmp_path, end_date="2025-01-03", step_days=10):
+    def _run(
+        self, spark, cloud, tmp_path, end_date="2025-01-03", start_date="2025-01-01", step_days=10
+    ):
         conf_path = tmp_path / "staging_query.json"
         conf_path.write_text(_conf_json(cloud, "dim_listings", _DIM_LISTINGS_QUERY))
 
         jsq = JupyterStagingQuery(_make_sq(cloud, "dim_listings"), spark, tmp_dir=str(tmp_path))
 
         with patch("ai.chronon.pyspark.jupyter.session.ChrononSession.compile_to_file"):
-            return jsq.run(end_date, step_days=step_days)
+            return jsq.run(end_date, start_date=start_date, step_days=step_days)
 
     def test_output_table_has_rows(self, spark, cloud, tmp_path):
         result = self._run(spark, cloud, tmp_path)
@@ -114,10 +136,17 @@ class TestDimListingsExport:
         dates = {row["ds"] for row in result.select("ds").collect()}
         assert all(d <= "2025-01-02" for d in dates), f"Unexpected dates after end_date: {dates}"
 
+    def test_output_respects_start_date(self, spark, cloud, tmp_path):
+        result = self._run(spark, cloud, tmp_path, start_date="2025-01-02", end_date="2025-01-03")
+        dates = {row["ds"] for row in result.select("ds").collect()}
+        assert all(d >= "2025-01-02" for d in dates), f"Unexpected dates before start_date: {dates}"
+
 
 @pytest.mark.integration
 class TestUserActivitiesExport:
-    def _run(self, spark, cloud, tmp_path, end_date="2025-01-03", step_days=10):
+    def _run(
+        self, spark, cloud, tmp_path, end_date="2025-01-03", start_date="2025-01-01", step_days=10
+    ):
         conf_path = tmp_path / "staging_query.json"
         conf_path.write_text(
             _conf_json(cloud, "user_activities", _USER_ACTIVITIES_QUERY, "event_time")
@@ -126,7 +155,7 @@ class TestUserActivitiesExport:
         jsq = JupyterStagingQuery(_make_sq(cloud, "user_activities"), spark, tmp_dir=str(tmp_path))
 
         with patch("ai.chronon.pyspark.jupyter.session.ChrononSession.compile_to_file"):
-            return jsq.run(end_date, step_days=step_days)
+            return jsq.run(end_date, start_date=start_date, step_days=step_days)
 
     def test_output_table_has_rows(self, spark, cloud, tmp_path):
         result = self._run(spark, cloud, tmp_path)

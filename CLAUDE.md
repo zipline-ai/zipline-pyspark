@@ -18,6 +18,10 @@ pytest tests/test_jupyter.py::TestJupyterStagingQueryChunking::test_single_day_n
 # Run tests with coverage
 pytest tests/ -v --cov=src --cov-report=term-missing
 
+# Run integration tests (requires a cloud JAR in tests/resources/jars/cloud_<cloud>.jar)
+pytest tests/integration/ -m integration --cloud aws   # or gcp / azure
+pytest tests/integration/ -m integration               # auto-selects first available JAR
+
 # Format code
 black --line-length 100 src/ tests/
 isort src/ tests/

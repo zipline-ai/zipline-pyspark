@@ -7,6 +7,35 @@ import pytest
 CANARY_DIR = os.path.join(os.path.dirname(__file__), "canary")
 
 
+class TestCompileToFileNameResolution:
+    """Verify that compile_to_file resolves metaData.name via GC when it is missing.
+
+    Uses the real dim_listings canary object so this exercises the actual GC referrer
+    lookup, update_metadata, and serialization path — no mocks.
+    """
+
+    def test_dim_listings_name_in_compiled_json(self, tmp_path):
+        from ai.chronon.pyspark.jupyter.session import ChrononSession
+
+        if CANARY_DIR not in sys.path:
+            sys.path.insert(0, CANARY_DIR)
+
+        from staging_queries.gcp import exports
+
+        sq = exports.dim_listings
+        sq.metaData.name = None  # reset to simulate pre-compile state
+
+        conf_path = str(tmp_path / "dim_listings.json")
+        ChrononSession.compile_to_file(sq, CANARY_DIR, conf_path)
+
+        with open(conf_path) as f:
+            compiled = json.load(f)
+
+        name = compiled["metaData"]["name"]
+        assert name is not None
+        assert "dim_listings" in name
+
+
 class TestCanaryCompile:
     @pytest.mark.skip
     def test_gcp_dim_listings_matches_canary(self, tmp_path):

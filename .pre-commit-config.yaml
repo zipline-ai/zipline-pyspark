@@ -59,5 +59,4 @@ repos:
         entry: pytest
         language: system
         pass_filenames: false
-        always_run: true
-        args: ['tests/', '-v', '--no-cov']
+        args: ['tests/', '--no-cov']
