@@ -9,11 +9,12 @@ description = "Notebook execution utilities for Zipline AI"
 requires-python = ">= 3.7"
 dependencies = [
     "zipline-ai",
-    "pyspark>=3.5",
 ]
 
 [project.optional-dependencies]
+local = ["pyspark>=3.5"]
 dev = [
+    "pyspark>=3.5",
     "black>=24.0",
     "flake8>=7.0",
     "flake8-docstrings",
