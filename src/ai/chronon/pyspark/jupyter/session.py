@@ -91,12 +91,16 @@ class ChrononSession:
         """Compile a GroupBy config and write to conf_path.
 
         Applies load_teams + update_metadata then serializes with thrift_simple_json.
-        Requires group_by.metaData.name and group_by.metaData.team to be set.
+        When metaData.name is unset (object constructed directly in Python, not via
+        the CLI compile step), resolves name and team via GC referrer lookup.
         """
         from ai.chronon.cli.compile.parse_teams import load_teams, update_metadata
         from ai.chronon.cli.compile.serializer import thrift_simple_json
+        from ai.chronon.group_by import _get_output_table_name
 
         teams_dict = load_teams(chronon_root, print=False)
+        if not group_by.metaData.name:
+            _get_output_table_name(group_by)
         update_metadata(group_by, teams_dict)
         with open(conf_path, "w") as f:
             f.write(thrift_simple_json(group_by))
@@ -106,12 +110,16 @@ class ChrononSession:
         """Compile a Join config and write to conf_path.
 
         Applies load_teams + update_metadata then serializes with thrift_simple_json.
-        Requires join.metaData.name and join.metaData.team to be set.
+        When metaData.name is unset (object constructed directly in Python, not via
+        the CLI compile step), resolves name and team via GC referrer lookup.
         """
         from ai.chronon.cli.compile.parse_teams import load_teams, update_metadata
         from ai.chronon.cli.compile.serializer import thrift_simple_json
+        from ai.chronon.join import _get_output_table_name
 
         teams_dict = load_teams(chronon_root, print=False)
+        if not join.metaData.name:
+            _get_output_table_name(join)
         update_metadata(join, teams_dict)
         with open(conf_path, "w") as f:
             f.write(thrift_simple_json(join))
