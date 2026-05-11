@@ -1,0 +1,22 @@
+[
+  {
+    "name": "Semver-Major",
+    "color": "b60205",
+    "description": "Breaking change; bumps the next release major version."
+  },
+  {
+    "name": "Semver-Minor",
+    "color": "1d76db",
+    "description": "Backward-compatible feature; bumps the next release minor version."
+  },
+  {
+    "name": "Semver-Patch",
+    "color": "0e8a16",
+    "description": "Backward-compatible fix; bumps the next release patch version."
+  },
+  {
+    "name": "ignore-for-release",
+    "color": "ffffff",
+    "description": "Exclude this change from generated release notes."
+  }
+]

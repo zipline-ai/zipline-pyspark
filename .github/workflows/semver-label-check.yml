@@ -1,0 +1,32 @@
+name: Label Checker
+
+on:
+  pull_request:
+    types: [opened, labeled, unlabeled, synchronize, ready_for_review]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  check_labels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for required labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = context.payload.pull_request.labels.map((label) => label.name);
+            const requiredLabels = [
+              "Semver-Major",
+              "Semver-Minor",
+              "Semver-Patch",
+            ];
+
+            const matchingLabels = labels.filter((label) => requiredLabels.includes(label));
+
+            if (matchingLabels.length !== 1) {
+              core.setFailed(
+                `PR must have exactly one semantic version label: ${requiredLabels.join(", ")}. ` +
+                `Found: ${matchingLabels.length ? matchingLabels.join(", ") : "none"}.`
+              );
+            }

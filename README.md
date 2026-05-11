@@ -85,6 +85,20 @@ Coverage is enforced automatically (configured in `pyproject.toml`). To skip the
 pytest tests/ -v --no-cov
 ```
 
+## Release Flow
+
+Each PR must carry exactly one semantic version label: `Semver-Major`, `Semver-Minor`, or
+`Semver-Patch`. Release Drafter uses those labels to keep a draft GitHub release up to date
+and determine the next release version.
+
+Publishing that GitHub release builds the `zipline-pyspark` wheel with the release tag as
+the package version and publishes it to PyPI through trusted publishing. To smoke-test the
+same wheel build locally:
+
+```bash
+scripts/build_release_wheel.sh v0.2.0
+```
+
 ## Roadmap
 
 ### 1. Implement `jupyter` and `databricks` backends

@@ -12,6 +12,7 @@ AGENTS.md
 
 # Distribution / packaging
 .Python
+src/ai/chronon/pyspark/_version.py
 build/
 develop-eggs/
 dist/
