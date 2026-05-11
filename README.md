@@ -11,6 +11,8 @@ Execution utilities to help with iteration and UX when working with [Zipline](ht
 
 > **Status:** Work in progress.
 
+![zipline-pyspark notebook demo](docs/assets/zipline-pyspark-demo.gif)
+
 ## Overview
 
 `zipline-pyspark` provides thin wrappers around Zipline's core entities — `GroupBy`, `Join`, and `StagingQuery` — that are designed to run interactively inside a Jupyter (or compatible) notebook against a live PySpark session. The goal is to make it easy to prototype, debug, and iterate on Zipline feature definitions without leaving the notebook.
