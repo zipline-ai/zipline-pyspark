@@ -1,0 +1,40 @@
+name-template: "v$RESOLVED_VERSION"
+tag-template: "v$RESOLVED_VERSION"
+version-template: "$MAJOR.$MINOR.$PATCH"
+change-template: "- $TITLE @$AUTHOR (#$NUMBER)"
+change-title-escapes: '\<*_&'
+no-changes-template: "- No release-impacting changes"
+
+categories:
+  - title: Major features / breaking changes
+    labels:
+      - Semver-Major
+  - title: Minor features
+    labels:
+      - Semver-Minor
+  - title: Bug fixes
+    labels:
+      - Semver-Patch
+  - title: Other changes
+    labels:
+      - "*"
+
+exclude-labels:
+  - ignore-for-release
+
+version-resolver:
+  major:
+    labels:
+      - Semver-Major
+  minor:
+    labels:
+      - Semver-Minor
+  patch:
+    labels:
+      - Semver-Patch
+  default: patch
+
+template: |
+  ## Changes
+
+  $CHANGES

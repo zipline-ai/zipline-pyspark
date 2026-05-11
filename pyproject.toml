@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=64"]
+requires = ["setuptools>=64", "setuptools_scm[toml]>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "zipline-pyspark"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Notebook execution utilities for Zipline AI"
 requires-python = ">= 3.7"
 dependencies = [
@@ -56,3 +56,8 @@ show_missing = true
 [tool.setuptools.packages.find]
 where = ["src"]
 namespaces = true
+
+[tool.setuptools_scm]
+version_file = "src/ai/chronon/pyspark/_version.py"
+local_scheme = "no-local-version"
+fallback_version = "0.1.0"
