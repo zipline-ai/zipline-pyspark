@@ -56,6 +56,14 @@ result_df = JupyterStagingQuery(my_staging_query, spark).run(
 - A running Spark session (local or remote)
 - `zipline-ai` package (installed automatically as a dependency)
 
+### Databricks limitations
+
+The Databricks notebook executors invoke Chronon's Scala batch driver through the Spark
+driver JVM. Databricks serverless compute does not support direct access to the underlying
+driver JVM via `sparkContext`, so these executors are not compatible with serverless
+notebook compute. Use classic Databricks compute with Dedicated access mode, and attach the
+Chronon batch JAR to the cluster.
+
 ### Development install
 
 ```bash

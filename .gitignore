@@ -3,6 +3,10 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# Custom
+.DS_Store
+AGENTS.md
+
 # C extensions
 *.so
 
