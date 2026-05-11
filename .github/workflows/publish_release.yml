@@ -11,8 +11,28 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
+  validate_release_branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout zipline-pyspark repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify release tag is on main
+        run: |
+          git fetch origin main --tags
+
+          RELEASE_COMMIT=$(git rev-list -n 1 "$VERSION")
+          if ! git merge-base --is-ancestor "$RELEASE_COMMIT" origin/main; then
+            echo "Release tag $VERSION points to $RELEASE_COMMIT, which is not contained in main."
+            echo "Publish releases from tags created from main only."
+            exit 1
+          fi
+
   build_python_wheel:
     runs-on: ubuntu-latest
+    needs: [validate_release_branch]
     steps:
       - name: Checkout zipline-pyspark repo
         uses: actions/checkout@v4
